@@ -1,9 +1,7 @@
 from app.core.database import engine, Base
-from app.models.user import User
-from app.models.commitment import Commitment
-from app.models.delivery import Delivery
-from app.models.settlement import Settlement
+import app.models  # 🔑 this line matters
 
 print("Creating tables...")
+Base.metadata.drop_all(bind=engine)
 Base.metadata.create_all(bind=engine)
 print("Done.")
