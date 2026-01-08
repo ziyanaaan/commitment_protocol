@@ -3,6 +3,7 @@ from sqlalchemy.sql import func
 from app.core.database import Base
 
 
+
 class Settlement(Base):
     __tablename__ = "settlements"
 

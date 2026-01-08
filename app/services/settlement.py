@@ -6,6 +6,8 @@ from app.models.commitment import Commitment
 from app.models.delivery import Delivery
 from app.models.settlement import Settlement
 from app.services.decay import calculate_time_decay_payout
+from app.core.logging import log
+
 
 
 DEFAULT_DECAY_CURVE = [
@@ -59,6 +61,13 @@ def settle_commitment(db: Session, commitment_id: int) -> Settlement:
         db.add(settlement)
         db.add(commitment)
         db.commit()
+        log.info(
+            "commitment %s settled: payout=%s refund=%s",
+            commitment.id,
+            settlement.payout_amount,
+            settlement.refund_amount,
+        )
+
         return settlement
 
     except IntegrityError:

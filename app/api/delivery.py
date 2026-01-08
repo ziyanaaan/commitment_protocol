@@ -5,6 +5,8 @@ from app.core.database import get_db
 from app.models.commitment import Commitment
 from app.models.delivery import Delivery
 from app.schemas.delivery import DeliveryCreate
+from app.services.state import assert_transition
+
 
 router = APIRouter(prefix="/commitments", tags=["delivery"])
 
@@ -33,6 +35,7 @@ def deliver(commitment_id: int, payload: DeliveryCreate, db: Session = Depends(g
         artifact_type=payload.artifact_type,
         artifact_reference=payload.artifact_reference,
     )
+    assert_transition(c.status, "delivered")
     c.status = "delivered"
     db.add(d)
     db.commit()

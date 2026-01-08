@@ -8,6 +8,7 @@ from app.models.commitment import Commitment
 from app.services.settlement import settle_commitment
 
 
+
 def process_expired_commitments():
     db: Session = SessionLocal()
     try:
@@ -15,12 +16,15 @@ def process_expired_commitments():
 
         expired_commitments = (
             db.query(Commitment)
+            .with_for_update(skip_locked=True)
             .filter(
                 Commitment.status == "locked",
                 Commitment.deadline < now,
             )
             .all()
         )
+
+
 
         for commitment in expired_commitments:
             commitment.status = "expired"
@@ -29,6 +33,7 @@ def process_expired_commitments():
 
             # Immediately settle after expiry
             settle_commitment(db, commitment.id)
+        
 
     finally:
         db.close()

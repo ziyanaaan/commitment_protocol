@@ -4,6 +4,8 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.models.commitment import Commitment
 from app.schemas.commitment import CommitmentCreate, CommitmentResponse
+from app.services.state import assert_transition
+
 
 router = APIRouter(prefix="/commitments", tags=["commitments"])
 
@@ -36,6 +38,7 @@ def fund_commitment(commitment_id: int, db: Session = Depends(get_db)):
             f"Cannot fund commitment in status '{c.status}'",
         )
 
+    assert_transition(c.status, "funded")
     c.status = "funded"
     db.commit()
     return {"previous": "draft", "current": "funded"}
@@ -53,6 +56,7 @@ def lock_commitment(commitment_id: int, db: Session = Depends(get_db)):
             f"Cannot lock commitment in status '{c.status}'",
         )
 
+    assert_transition(c.status, "locked")
     c.status = "locked"
     db.commit()
     return {"previous": "funded", "current": "locked"}
