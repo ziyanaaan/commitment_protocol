@@ -13,6 +13,7 @@ from app.models.payment import Payment
 
 
 
+
 DEFAULT_DECAY_CURVE = [
     (0, 100),
     (60, 85),
@@ -73,8 +74,10 @@ def settle_commitment(db: Session, commitment_id: int) -> Settlement:
         payment = (
             db.query(Payment)
             .filter(Payment.commitment_id == commitment.id)
-            .one()
+            .one_or_none()
         )
+        if not payment or payment.status != "paid":
+            raise ValueError("Cannot settle commitment with unpaid payment")
 
         #Refund unused amount only
         if settlement.refund_amount > 0:
@@ -88,8 +91,6 @@ def settle_commitment(db: Session, commitment_id: int) -> Settlement:
         payment.status = "refunded"
         db.add(payment)
         db.commit()
-
-
 
 
 

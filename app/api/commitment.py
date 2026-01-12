@@ -81,6 +81,18 @@ def lock_commitment(commitment_id: int, db: Session = Depends(get_db)):
         )
 
     assert_transition(c.status, "locked")
+    payment = (
+        db.query(Payment)
+        .filter(Payment.commitment_id == c.id)
+        .one_or_none()
+    )
+
+    if not payment or payment.status != "paid":
+        raise HTTPException(
+            status_code=409,
+            detail="Payment not verified. Cannot lock commitment."
+        )
+
     c.status = "locked"
     db.commit()
     return {"previous": "funded", "current": "locked"}
