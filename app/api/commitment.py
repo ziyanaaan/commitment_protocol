@@ -5,6 +5,9 @@ from app.core.database import get_db
 from app.models.commitment import Commitment
 from app.schemas.commitment import CommitmentCreate, CommitmentResponse
 from app.services.state import assert_transition
+from app.services.razorpay_client import client
+from app.models.payment import Payment
+
 
 
 router = APIRouter(prefix="/commitments", tags=["commitments"])
@@ -27,21 +30,42 @@ def create_commitment(payload: CommitmentCreate, db: Session = Depends(get_db)):
 
 
 @router.post("/{commitment_id}/fund")
+@router.post("/{commitment_id}/fund")
 def fund_commitment(commitment_id: int, db: Session = Depends(get_db)):
     c = db.query(Commitment).filter_by(id=commitment_id).first()
     if not c:
         raise HTTPException(404, "Commitment not found")
 
     if c.status != "draft":
-        raise HTTPException(
-            status.HTTP_409_CONFLICT,
-            f"Cannot fund commitment in status '{c.status}'",
-        )
+        raise HTTPException(409, f"Cannot fund in status '{c.status}'")
 
-    assert_transition(c.status, "funded")
+    # move state
     c.status = "funded"
     db.commit()
-    return {"previous": "draft", "current": "funded"}
+
+    # create Razorpay order (amount in paise)
+    order = client.order.create({
+        "amount": int(c.amount * 100),
+        "currency": "INR",
+        "payment_capture": 1
+    })
+
+    payment = Payment(
+        commitment_id=c.id,
+        order_id=order["id"],
+        amount=c.amount,
+        status="created"
+    )
+    db.add(payment)
+    db.commit()
+
+    return {
+        "status": "funded",
+        "order_id": order["id"],
+        "razorpay_key": os.getenv("RAZORPAY_KEY_ID"),
+        "amount": int(c.amount * 100),
+        "currency": "INR"
+    }
 
 
 @router.post("/{commitment_id}/lock")

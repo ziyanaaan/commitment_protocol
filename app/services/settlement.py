@@ -7,6 +7,9 @@ from app.models.delivery import Delivery
 from app.models.settlement import Settlement
 from app.services.decay import calculate_time_decay_payout
 from app.core.logging import log
+from app.services.razorpay_client import client
+from app.models.payment import Payment
+
 
 
 
@@ -67,6 +70,28 @@ def settle_commitment(db: Session, commitment_id: int) -> Settlement:
             settlement.payout_amount,
             settlement.refund_amount,
         )
+        payment = (
+            db.query(Payment)
+            .filter(Payment.commitment_id == commitment.id)
+            .one()
+        )
+
+        #Refund unused amount only
+        if settlement.refund_amount > 0:
+            client.payment.refund(
+                payment.payment_id,
+                {
+                    "amount": int(settlement.refund_amount * 100)
+                }
+            )
+
+        payment.status = "refunded"
+        db.add(payment)
+        db.commit()
+
+
+
+
 
         return settlement
 
