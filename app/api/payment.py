@@ -7,23 +7,30 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.models.payment import Payment
+from app.models.commitment import Commitment
+from app.schemas.payment import RazorpayVerifyRequest
+
+
 
 router = APIRouter(prefix="/payments", tags=["payments"])
 
 
 @router.post("/verify")
 def verify_payment(
-    razorpay_order_id: str,
-    razorpay_payment_id: str,
-    razorpay_signature: str,
+    payload: RazorpayVerifyRequest,
     db: Session = Depends(get_db),
-):
+):  
+    print(payload)
+    razorpay_order_id = payload.razorpay_order_id
+    razorpay_payment_id = payload.razorpay_payment_id
+    razorpay_signature = payload.razorpay_signature
+
     payment = (
         db.query(Payment)
         .filter(Payment.order_id == razorpay_order_id)
         .one_or_none()
     )
-
+    print(payload)
     if not payment:
         raise HTTPException(404, "Payment record not found")
 
@@ -37,14 +44,47 @@ def verify_payment(
         hashlib.sha256,
     ).hexdigest()
 
-    if expected_signature != razorpay_signature:
-        raise HTTPException(400, "Invalid payment signature")
+    if not hmac.compare_digest(expected_signature, razorpay_signature):
+        raise HTTPException(status_code=400, detail="Invalid signature")
 
-    # Mark payment as verified
+    # UPDATE PAYMENT RECORD
     payment.payment_id = razorpay_payment_id
     payment.status = "paid"
 
-    db.add(payment)
+    # UPDATE COMMITMENT
+    commitment = db.query(Commitment).filter(
+        Commitment.id == payment.commitment_id
+    ).one()
+
+    commitment.status = "paid"
+
     db.commit()
 
-    return {"status": "verified"}
+
+    return {
+        "ok": True,
+        "payment_status": payment.status,
+        "commitment_status": commitment.status,
+
+
+    }
+
+
+@router.get("/{commitment_id}")
+def get_payment(commitment_id: int, db: Session = Depends(get_db)):
+        payment = (
+            db.query(Payment)
+            .filter(Payment.commitment_id == commitment_id)
+            .one_or_none()
+        )  
+
+        if not payment:
+            raise HTTPException(404, "Payment not found")
+
+        return {
+            "status": payment.status,
+            "order_id": payment.order_id,
+            "payment_id": payment.payment_id,
+            "amount": float(payment.amount),
+        }
+

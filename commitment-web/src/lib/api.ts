@@ -9,10 +9,26 @@ export async function api<T>(
     ...options,
   });
 
-  if (!res.ok) {
-    const err = await res.json();
-    throw new Error(err.detail || "API error");
-  }
+  const text = await res.text();
 
-  return res.json();
+  if (!res.ok) {
+  let message = "API error";
+
+  try {
+    const err = await res.json();
+
+    if (typeof err.detail === "string") {
+      message = err.detail;
+    } else if (Array.isArray(err.detail)) {
+      message = err.detail.map((e: any) => e.msg).join(", ");
+    } else if (err.message) {
+      message = err.message;
+    }
+  } catch {}
+
+  throw new Error(message);
+}
+
+
+  return text ? JSON.parse(text) : ({} as T);
 }
