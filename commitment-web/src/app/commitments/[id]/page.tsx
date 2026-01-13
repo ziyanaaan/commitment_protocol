@@ -133,6 +133,14 @@ async function pay() {
           Deliver
         </button>
       )}
+      {commitment.status === "settled" && (
+        <div style={{ marginTop: 16 }}>
+          <a href={`/result/${id}`}>
+            View Settlement Result
+          </a>
+        </div>
+      )}
+
 
       {loading && <p>Processing…</p>}
     </main>

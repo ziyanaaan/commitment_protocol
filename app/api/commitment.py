@@ -31,7 +31,6 @@ def create_commitment(payload: CommitmentCreate, db: Session = Depends(get_db)):
 
 
 @router.post("/{commitment_id}/fund")
-@router.post("/{commitment_id}/fund")
 def fund_commitment(commitment_id: int, db: Session = Depends(get_db)):
     c = db.query(Commitment).filter_by(id=commitment_id).first()
     if not c:
@@ -70,33 +69,60 @@ def fund_commitment(commitment_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/{commitment_id}/lock")
-def lock_commitment(commitment_id: int, db: Session = Depends(get_db)):
-    c = db.query(Commitment).filter_by(id=commitment_id).first()
-    if not c:
-        raise HTTPException(404, "Commitment not found")
-
-    if c.status != "funded":
-        raise HTTPException(
-            status.HTTP_409_CONFLICT,
-            f"Cannot lock commitment in status '{c.status}'",
-        )
-
-    assert_transition(c.status, "locked")
-    payment = (
-        db.query(Payment)
-        .filter(Payment.commitment_id == c.id)
+def lock_commitment(
+    commitment_id: int,
+    db: Session = Depends(get_db),
+):
+    commitment = (
+        db.query(Commitment)
+        .filter(Commitment.id == commitment_id)
         .one_or_none()
     )
 
-    if not payment or payment.status != "paid":
+    if not commitment:
+        raise HTTPException(404, "Commitment not found")
+
+    if commitment.status != "paid":
         raise HTTPException(
             status_code=409,
-            detail="Payment not verified. Cannot lock commitment."
+            detail=f"Cannot lock commitment in status '{commitment.status}'",
         )
 
-    c.status = "locked"
+    commitment.status = "locked"
     db.commit()
-    return {"previous": "funded", "current": "locked"}
+
+    return {
+        "id": commitment.id,
+        "status": commitment.status,
+    }
+
+@router.post("/{commitment_id}/deliver")
+def deliver_commitment(
+    commitment_id: int,
+    db: Session = Depends(get_db),
+):
+    commitment = (
+        db.query(Commitment)
+        .filter(Commitment.id == commitment_id)
+        .one_or_none()
+    )
+
+    if not commitment:
+        raise HTTPException(404, "Commitment not found")
+
+    if commitment.status != "locked":
+        raise HTTPException(
+            status_code=409,
+            detail=f"Cannot deliver commitment in status '{commitment.status}'",
+        )
+
+    commitment.status = "delivered"
+    db.commit()
+
+    return {
+        "id": commitment.id,
+        "status": commitment.status,
+    }
 
 
 @router.get("/{commitment_id}", response_model=CommitmentResponse)

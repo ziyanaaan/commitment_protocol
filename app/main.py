@@ -6,6 +6,7 @@ from app.api.preview import router as preview_router
 from app.core.errors import value_error_handler
 from app.api.payment import router as payment_router
 from app.api.payment import router as payment_router
+from app.api.settlement import router as settlement_router
 from fastapi.middleware.cors import CORSMiddleware
 
 
@@ -26,7 +27,7 @@ app.include_router(commitment_router)
 app.include_router(delivery_router)
 app.include_router(preview_router)
 app.include_router(payment_router)
-app.include_router(payment_router)
+app.include_router(settlement_router)
 
 
 
