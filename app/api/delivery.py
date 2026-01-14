@@ -6,37 +6,22 @@ from app.models.commitment import Commitment
 from app.models.delivery import Delivery
 from app.schemas.delivery import DeliveryCreate
 from app.services.state import assert_transition
+from app.services.delivery import deliver_commitment
 
 
 router = APIRouter(prefix="/commitments", tags=["delivery"])
 
 
 @router.post("/{commitment_id}/deliver")
-def deliver(commitment_id: int, payload: DeliveryCreate, db: Session = Depends(get_db)):
-    c = db.query(Commitment).filter_by(id=commitment_id).first()
-    if not c:
-        raise HTTPException(404, "Commitment not found")
+def deliver(
+    commitment_id: int,
+    payload: DeliveryCreate,
+    db: Session = Depends(get_db),
+):
+    delivery = deliver_commitment(db=db, commitment_id=commitment_id, payload=payload)
 
-    if c.status != "locked":
-        raise HTTPException(
-            status.HTTP_409_CONFLICT,
-            f"Cannot deliver commitment in status '{c.status}'",
-        )
-
-    existing = db.query(Delivery).filter_by(commitment_id=commitment_id).first()
-    if existing:
-        raise HTTPException(
-            status.HTTP_409_CONFLICT,
-            "Delivery already submitted",
-        )
-
-    d = Delivery(
-        commitment_id=commitment_id,
-        artifact_type=payload.artifact_type,
-        artifact_reference=payload.artifact_reference,
-    )
-    assert_transition(c.status, "delivered")
-    c.status = "delivered"
-    db.add(d)
-    db.commit()
-    return {"previous": "locked", "current": "delivered"}
+    return {
+        "id": delivery.id,
+        "status": "delivered",
+        "delivered_at": delivery.submitted_at,
+    }

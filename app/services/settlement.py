@@ -1,6 +1,7 @@
 from decimal import Decimal
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
+from datetime import datetime
 
 from app.models.commitment import Commitment
 from app.models.delivery import Delivery
@@ -23,11 +24,15 @@ DEFAULT_DECAY_CURVE = [
 
 
 def settle_commitment(db: Session, commitment_id: int) -> Settlement:
+    print(">>> settle_commitment START", commitment_id)
     commitment = (
         db.query(Commitment)
         .filter(Commitment.id == commitment_id)
         .one_or_none()
     )
+    print(">>> commitment:", commitment, commitment.status if commitment else None)
+
+
 
     if not commitment:
         raise ValueError("Commitment not found")
@@ -42,6 +47,8 @@ def settle_commitment(db: Session, commitment_id: int) -> Settlement:
         .filter(Delivery.commitment_id == commitment.id)
         .one_or_none()
     )
+    print(">>> delivery:", delivery)
+
 
     delivered_at = delivery.submitted_at if delivery else None
 
@@ -52,16 +59,22 @@ def settle_commitment(db: Session, commitment_id: int) -> Settlement:
         decay_curve=DEFAULT_DECAY_CURVE,
     )
 
+    print(">>> calculating payout")
+
     settlement = Settlement(
         commitment_id=commitment.id,
         delay_minutes=result["delay_minutes"] or 0,
         payout_amount=result["payout"],
         refund_amount=result["refund"],
+        decay_applied=DEFAULT_DECAY_CURVE,
     )
+    
 
     commitment.status = "settled"
 
     try:
+        print(">>> inserting settlement")
+
         db.add(settlement)
         db.add(commitment)
         db.commit()
@@ -87,14 +100,16 @@ def settle_commitment(db: Session, commitment_id: int) -> Settlement:
                     "amount": int(settlement.refund_amount * 100)
                 }
             )
-
+        
         payment.status = "refunded"
         db.add(payment)
         db.commit()
-
-
+        db.refresh(settlement)
+        print(">>> returning settlement", settlement)
 
         return settlement
+        print(">>> END OF FUNCTION — NO RETURN HIT")
+
 
     except IntegrityError:
         db.rollback()
@@ -102,5 +117,6 @@ def settle_commitment(db: Session, commitment_id: int) -> Settlement:
         return (
             db.query(Settlement)
             .filter(Settlement.commitment_id == commitment.id)
-            .one()
+            .order_by(Settlement.id.desc())
+            .first()
         )

@@ -20,7 +20,6 @@ def verify_payment(
     payload: RazorpayVerifyRequest,
     db: Session = Depends(get_db),
 ):  
-    print(payload)
     razorpay_order_id = payload.razorpay_order_id
     razorpay_payment_id = payload.razorpay_payment_id
     razorpay_signature = payload.razorpay_signature
@@ -30,7 +29,6 @@ def verify_payment(
         .filter(Payment.order_id == razorpay_order_id)
         .one_or_none()
     )
-    print(payload)
     if not payment:
         raise HTTPException(404, "Payment record not found")
 

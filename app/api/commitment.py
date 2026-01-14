@@ -1,6 +1,8 @@
 import os
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from pydantic import BaseModel
+from datetime import datetime
 
 from app.core.database import get_db
 from app.models.commitment import Commitment
@@ -8,14 +10,22 @@ from app.schemas.commitment import CommitmentCreate, CommitmentResponse
 from app.services.state import assert_transition
 from app.services.razorpay_client import client
 from app.models.payment import Payment
+from app.services.delivery import deliver_commitment
+from app.schemas.delivery import DeliveryCreate
 
 
+class CommitmentCreateRequest(BaseModel):
+    client_id: int
+    freelancer_id: int
+    amount: float
+    deadline: datetime
+    decay_curve: str = "linear"
 
 router = APIRouter(prefix="/commitments", tags=["commitments"])
 
 
-@router.post("", response_model=CommitmentResponse)
-def create_commitment(payload: CommitmentCreate, db: Session = Depends(get_db)):
+@router.post("")
+def create_commitment(payload: CommitmentCreateRequest, db: Session = Depends(get_db)):
     c = Commitment(
         client_id=payload.client_id,
         freelancer_id=payload.freelancer_id,
@@ -24,6 +34,9 @@ def create_commitment(payload: CommitmentCreate, db: Session = Depends(get_db)):
         decay_curve=payload.decay_curve,
         status="draft",
     )
+    if payload.client_id is None:
+        raise HTTPException(400, "client_id is required")
+
     db.add(c)
     db.commit()
     db.refresh(c)
@@ -40,7 +53,6 @@ def fund_commitment(commitment_id: int, db: Session = Depends(get_db)):
         raise HTTPException(409, f"Cannot fund in status '{c.status}'")
 
     # move state
-    c.status = "funded"
     db.commit()
 
     # create Razorpay order (amount in paise)
@@ -97,31 +109,22 @@ def lock_commitment(
     }
 
 @router.post("/{commitment_id}/deliver")
-def deliver_commitment(
+def deliver(
     commitment_id: int,
+    payload: DeliveryCreate | None = None,
     db: Session = Depends(get_db),
 ):
-    commitment = (
-        db.query(Commitment)
-        .filter(Commitment.id == commitment_id)
-        .one_or_none()
-    )
-
-    if not commitment:
-        raise HTTPException(404, "Commitment not found")
-
-    if commitment.status != "locked":
-        raise HTTPException(
-            status_code=409,
-            detail=f"Cannot deliver commitment in status '{commitment.status}'",
+    if payload is None:
+        payload = DeliveryCreate(
+            artifact_type="manual",
+            artifact_reference="submitted via UI"
         )
 
-    commitment.status = "delivered"
-    db.commit()
-
+    delivery = deliver_commitment(db, commitment_id, payload)
     return {
-        "id": commitment.id,
-        "status": commitment.status,
+        "id": delivery.id,
+        "status": "delivered",
+        "delivered_at": delivery.submitted_at,
     }
 
 

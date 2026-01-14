@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, ForeignKey, DateTime, Numeric
+from sqlalchemy import Column, Integer, ForeignKey, DateTime, Numeric, String
 from sqlalchemy.sql import func
 from app.core.database import Base
 
@@ -15,5 +15,6 @@ class Settlement(Base):
 
     payout_amount = Column(Numeric(10, 2), nullable=False)
     refund_amount = Column(Numeric(10, 2), nullable=False)
+    decay_applied = Column(String, nullable=False)
 
     settled_at = Column(DateTime(timezone=True), server_default=func.now())
