@@ -56,7 +56,7 @@ def settle_commitment(db: Session, commitment_id: int) -> Settlement:
         amount=Decimal(commitment.amount),
         deadline=commitment.deadline,
         delivered_at=delivered_at,
-        decay_curve=DEFAULT_DECAY_CURVE,
+        decay_curve=commitment.decay_curve,
     )
 
     print(">>> calculating payout")
@@ -66,7 +66,7 @@ def settle_commitment(db: Session, commitment_id: int) -> Settlement:
         delay_minutes=result["delay_minutes"] or 0,
         payout_amount=result["payout"],
         refund_amount=result["refund"],
-        decay_applied=DEFAULT_DECAY_CURVE,
+        decay_applied=commitment.decay_curve,
     )
     
 

@@ -19,7 +19,7 @@ class Commitment(Base):
 
     deadline = Column(DateTime(timezone=True), nullable=False)
 
-    decay_curve = Column(String, nullable=False)  # identifier, not logic
+    decay_curve = Column(String(20), nullable=False, default="balanced")  # identifier, not logic
 
     status = Column(String, nullable=False, index=True)
     # draft | funded | locked | delivered | expired | settled

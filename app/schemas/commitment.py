@@ -13,7 +13,7 @@ class CommitmentCreate(BaseModel):
     deadline: datetime
     title: str
     description: Optional[str] = None
-    decay_curve: str = "default"
+    decay_curve: str = "balanced"
     @validator("deadline")
     def deadline_must_be_utc(cls, v):
         if v.tzinfo is None:
@@ -30,7 +30,7 @@ class CommitmentResponse(BaseModel):
     deadline: datetime
     title: str
     description: Optional[str] = None
-    decay_curve: str
+    decay_curve: str = "balanced"
     status: str
 
     class Config:
