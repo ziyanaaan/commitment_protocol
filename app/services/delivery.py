@@ -5,6 +5,7 @@ from fastapi import HTTPException, status
 from app.models.commitment import Commitment
 from app.models.delivery import Delivery
 from app.schemas.delivery import DeliveryCreate
+from app.services.settlement import settle_commitment
 
 
 def deliver_commitment(
@@ -49,5 +50,10 @@ def deliver_commitment(
     db.refresh(delivery)
 
     print(">>> delivery committed")
+    settlement = settle_commitment(db, commitment_id)
 
-    return delivery
+
+    return {
+        "delivery": delivery,
+        "settlement": settlement
+    }

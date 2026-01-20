@@ -2,6 +2,7 @@ from datetime import datetime
 from decimal import Decimal
 from pydantic import BaseModel
 from pydantic import validator
+from typing import Optional
 
 
 
@@ -10,6 +11,8 @@ class CommitmentCreate(BaseModel):
     freelancer_id: int
     amount: Decimal
     deadline: datetime
+    title: str
+    description: Optional[str] = None
     decay_curve: str = "default"
     @validator("deadline")
     def deadline_must_be_utc(cls, v):
@@ -25,6 +28,8 @@ class CommitmentResponse(BaseModel):
     freelancer_id: int
     amount: Decimal
     deadline: datetime
+    title: str
+    description: Optional[str] = None
     decay_curve: str
     status: str
 

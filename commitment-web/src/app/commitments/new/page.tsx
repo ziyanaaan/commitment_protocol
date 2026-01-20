@@ -8,6 +8,8 @@ export default function NewCommitmentPage() {
   const router = useRouter();
 
   const [freelancerId, setFreelancerId] = useState(2);
+  const [title, setTitle] = useState("")
+  const [description, setDescription] = useState("")
   const [amount, setAmount] = useState(1000);
   const [deadline, setDeadline] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -24,6 +26,8 @@ export default function NewCommitmentPage() {
           client_id: 1,               // temporary
           freelancer_id: freelancerId,
           amount,
+          title,
+          description,
           deadline: new Date(deadline).toISOString(),
           decay_curve: "linear",      // default for now
         }),
@@ -48,6 +52,23 @@ export default function NewCommitmentPage() {
           value={freelancerId}
           onChange={(e) => setFreelancerId(+e.target.value)}
         />
+      </label>
+
+      <label>
+        Title
+        <input
+          type="text"
+          placeholder="Commitment title"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+        />
+
+        <textarea
+          placeholder="Describe your commitment"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+        />
+
       </label>
 
       <label>

@@ -1,6 +1,7 @@
 from sqlalchemy import Column, Integer, ForeignKey, DateTime, String
 from sqlalchemy.sql import func
 from app.core.database import Base
+from datetime import datetime
 
 
 class Delivery(Base):

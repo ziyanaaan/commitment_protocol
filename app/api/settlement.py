@@ -19,8 +19,9 @@ def get_by_commitment(commitment_id: int, db: Session = Depends(get_db)):
         "commitment_id": s.commitment_id,
         "payout_amount": float(s.payout_amount),
         "refund_amount": float(s.refund_amount),
+        "Delay_minutes": s.delay_minutes,
         "decay_applied": s.decay_applied,
-        "created_at": s.created_at,
+        "Settled_at": s.settled_at,
     }
 
 @router.post("/{commitment_id}/settle")

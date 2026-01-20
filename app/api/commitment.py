@@ -19,6 +19,8 @@ class CommitmentCreateRequest(BaseModel):
     freelancer_id: int
     amount: float
     deadline: datetime
+    title: str
+    description: str
     decay_curve: str = "linear"
 
 router = APIRouter(prefix="/commitments", tags=["commitments"])
@@ -31,6 +33,8 @@ def create_commitment(payload: CommitmentCreateRequest, db: Session = Depends(ge
         freelancer_id=payload.freelancer_id,
         amount=payload.amount,
         deadline=payload.deadline,
+        title=payload.title,
+        description=payload.description,
         decay_curve=payload.decay_curve,
         status="draft",
     )
