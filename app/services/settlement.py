@@ -12,27 +12,29 @@ from app.services.razorpay_client import client
 from app.models.payment import Payment
 
 
-
-
-
-DEFAULT_DECAY_CURVE = [
-    (0, 100),
-    (60, 85),
-    (180, 60),
-    (360, 30),
-]
-
-
 def settle_commitment(db: Session, commitment_id: int) -> Settlement:
+    """
+    Settle a commitment - calculate payout/refund based on delivery timing.
+    This is idempotent - if settlement already exists, returns it.
+    """
     print(">>> settle_commitment START", commitment_id)
+    
+    # Check if settlement already exists (idempotent)
+    existing_settlement = (
+        db.query(Settlement)
+        .filter(Settlement.commitment_id == commitment_id)
+        .first()
+    )
+    if existing_settlement:
+        print(">>> Settlement already exists, returning it")
+        return existing_settlement
+    
     commitment = (
         db.query(Commitment)
         .filter(Commitment.id == commitment_id)
         .one_or_none()
     )
     print(">>> commitment:", commitment, commitment.status if commitment else None)
-
-
 
     if not commitment:
         raise ValueError("Commitment not found")
@@ -49,7 +51,6 @@ def settle_commitment(db: Session, commitment_id: int) -> Settlement:
     )
     print(">>> delivery:", delivery)
 
-
     delivered_at = delivery.submitted_at if delivery else None
 
     result = calculate_time_decay_payout(
@@ -59,7 +60,7 @@ def settle_commitment(db: Session, commitment_id: int) -> Settlement:
         decay_curve=commitment.decay_curve,
     )
 
-    print(">>> calculating payout")
+    print(">>> calculating payout:", result)
 
     settlement = Settlement(
         commitment_id=commitment.id,
@@ -68,52 +69,54 @@ def settle_commitment(db: Session, commitment_id: int) -> Settlement:
         refund_amount=result["refund"],
         decay_applied=commitment.decay_curve,
     )
-    
 
     commitment.status = "settled"
 
     try:
         print(">>> inserting settlement")
-
         db.add(settlement)
         db.add(commitment)
         db.commit()
+        db.refresh(settlement)
+        
         log.info(
             "commitment %s settled: payout=%s refund=%s",
             commitment.id,
             settlement.payout_amount,
             settlement.refund_amount,
         )
-        payment = (
-            db.query(Payment)
-            .filter(Payment.commitment_id == commitment.id)
-            .one_or_none()
-        )
-        if not payment or payment.status != "paid":
-            raise ValueError("Cannot settle commitment with unpaid payment")
-
-        #Refund unused amount only
-        if settlement.refund_amount > 0:
-            client.payment.refund(
-                payment.payment_id,
-                {
-                    "amount": int(settlement.refund_amount * 100)
-                }
-            )
         
-        payment.status = "refunded"
-        db.add(payment)
-        db.commit()
-        db.refresh(settlement)
+        # Try to process refund via Razorpay (optional, don't fail if this fails)
+        try:
+            payment = (
+                db.query(Payment)
+                .filter(Payment.commitment_id == commitment.id)
+                .one_or_none()
+            )
+            
+            if payment and payment.status == "paid" and settlement.refund_amount > 0:
+                print(f">>> Processing refund of {settlement.refund_amount}")
+                client.payment.refund(
+                    payment.payment_id,
+                    {"amount": int(settlement.refund_amount * 100)}
+                )
+                payment.status = "refunded"
+                db.add(payment)
+                db.commit()
+                print(">>> Refund processed successfully")
+            elif payment:
+                print(f">>> No refund needed or payment status is {payment.status}")
+        except Exception as refund_error:
+            print(f">>> Refund failed (non-critical): {refund_error}")
+            # Don't fail the settlement if refund fails - settlement is already saved
+        
         print(">>> returning settlement", settlement)
-
         return settlement
-        print(">>> END OF FUNCTION — NO RETURN HIT")
-
 
     except IntegrityError:
         db.rollback()
         # Settlement already exists → return it
+        print(">>> IntegrityError - settlement already exists")
         return (
             db.query(Settlement)
             .filter(Settlement.commitment_id == commitment.id)

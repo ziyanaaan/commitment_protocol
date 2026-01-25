@@ -12,8 +12,8 @@ from app.services.delivery import deliver_commitment
 router = APIRouter(prefix="/commitments", tags=["delivery"])
 
 
-@router.post("/{commitment_id}/deliver")
-def deliver(
+@router.post("/{commitment_id}/deliver_commitment")
+def deliver_commitment(
     commitment_id: int,
     payload: DeliveryCreate,
     db: Session = Depends(get_db),

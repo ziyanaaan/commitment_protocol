@@ -32,6 +32,8 @@ class CommitmentResponse(BaseModel):
     description: Optional[str] = None
     decay_curve: str = "balanced"
     status: str
+    created_at: Optional[datetime] = None
 
     class Config:
         orm_mode = True
+

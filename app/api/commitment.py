@@ -6,6 +6,7 @@ from datetime import datetime
 
 from app.core.database import get_db
 from app.models.commitment import Commitment
+from app.models.delivery import Delivery
 from app.schemas.commitment import CommitmentCreate, CommitmentResponse
 from app.services.state import assert_transition
 from app.services.razorpay_client import client
@@ -118,18 +119,41 @@ def deliver(
     payload: DeliveryCreate | None = None,
     db: Session = Depends(get_db),
 ):
+    """Deliver a commitment. Idempotent - safe to call multiple times."""
     if payload is None:
         payload = DeliveryCreate(
             artifact_type="manual",
             artifact_reference="submitted via UI"
         )
 
-    delivery = deliver_commitment(db, commitment_id, payload)
-    return {
-        "id": delivery.id,
-        "status": "delivered",
-        "delivered_at": delivery.submitted_at,
-    }
+    try:
+        result = deliver_commitment(db, commitment_id, payload)
+    except ValueError as e:
+        # Convert ValueError to HTTPException with proper status
+        error_msg = str(e)
+        if "not found" in error_msg.lower():
+            raise HTTPException(404, error_msg)
+        else:
+            raise HTTPException(409, error_msg)
+    
+    # Handle both dict return (new delivery) and Delivery object return (existing)
+    if isinstance(result, dict):
+        delivery = result["delivery"]
+        settlement = result.get("settlement")
+        return {
+            "id": delivery.id,
+            "status": "settled",
+            "delivered_at": delivery.submitted_at,
+            "settlement_id": settlement.id if settlement else None,
+        }
+    else:
+        # Existing delivery was returned (idempotent case)
+        return {
+            "id": result.id,
+            "status": "delivered",
+            "delivered_at": result.submitted_at,
+            "message": "Already delivered"
+        }
 
 
 @router.get("/{commitment_id}", response_model=CommitmentResponse)

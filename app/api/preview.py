@@ -8,7 +8,6 @@ from app.models.commitment import Commitment
 from app.models.delivery import Delivery
 from app.schemas.preview import CommitmentPreview
 from app.services.decay import calculate_time_decay_payout
-from app.services.settlement import DEFAULT_DECAY_CURVE
 
 router = APIRouter(prefix="/commitments", tags=["preview"])
 
@@ -37,7 +36,7 @@ def preview_commitment(commitment_id: int, db: Session = Depends(get_db)):
         amount=Decimal(c.amount),
         deadline=c.deadline,
         delivered_at=delivered_at,
-        decay_curve=DEFAULT_DECAY_CURVE,
+        decay_curve=c.decay_curve,
     )
 
     return CommitmentPreview(

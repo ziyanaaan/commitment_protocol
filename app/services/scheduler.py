@@ -5,47 +5,32 @@ from sqlalchemy.orm import Session
 
 from app.core.database import SessionLocal
 from app.models.commitment import Commitment
-from app.services.settlement import settle_commitment
-
 
 
 def process_expired_commitments():
-    db: Session = SessionLocal()
-    try:
-        now = datetime.now(timezone.utc)
-
-        expired_commitments = (
-            db.query(Commitment)
-            .with_for_update(skip_locked=True)
-            .filter(
-                Commitment.status == "locked",
-                Commitment.deadline < now,
-            )
-            .all()
-        )
-
-
-
-        for commitment in expired_commitments:
-            commitment.status = "expired"
-            db.add(commitment)
-            db.commit()
-
-            # Immediately settle after expiry
-            settle_commitment(db, commitment.id)
-        
-
-    finally:
-        db.close()
+    """
+    DISABLED: This function no longer marks commitments as expired.
+    Commitments will stay in their current state regardless of deadline.
+    The deadline is only used for calculating decay/payout, not for expiry.
+    """
+    # Do nothing - expiry is disabled
+    pass
 
 
 def start_scheduler():
-    scheduler = BackgroundScheduler(timezone="UTC")
-    scheduler.add_job(
-        process_expired_commitments,
-        trigger="interval",
-        minutes=1,
-        id="expired_commitment_processor",
-        replace_existing=True,
-    )
-    scheduler.start()
+    """Start the background scheduler (currently disabled)."""
+    # Scheduler is disabled - no automatic expiry
+    # If you want to re-enable expiry in the future, uncomment the code below
+    
+    # scheduler = BackgroundScheduler(timezone="UTC")
+    # scheduler.add_job(
+    #     process_expired_commitments,
+    #     trigger="interval",
+    #     minutes=1,
+    #     id="expired_commitment_processor",
+    #     replace_existing=True,
+    # )
+    # scheduler.start()
+    
+    print(">>> Scheduler disabled - no automatic expiry")
+    pass
