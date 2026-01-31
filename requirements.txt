@@ -5,3 +5,7 @@ psycopg2-binary
 python-dotenv
 pydantic
 apscheduler
+argon2-cffi
+pyjwt
+python-ulid
+slowapi
