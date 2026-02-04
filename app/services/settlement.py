@@ -5,11 +5,13 @@ from datetime import datetime
 
 from app.models.commitment import Commitment
 from app.models.delivery import Delivery
+from app.models.delivery_evidence import DeliveryEvidence
 from app.models.settlement import Settlement
 from app.services.decay import calculate_time_decay_payout
 from app.core.logging import log
 from app.services.razorpay_client import client
 from app.models.payment import Payment
+
 
 
 def settle_commitment(db: Session, commitment_id: int) -> Settlement:
@@ -51,7 +53,35 @@ def settle_commitment(db: Session, commitment_id: int) -> Settlement:
     )
     print(">>> delivery:", delivery)
 
+    # =====================================================================
+    # EVIDENCE VALIDATION CHECK (NEW)
+    # Settlement requires at least 1 validated evidence
+    # =====================================================================
+    if delivery:
+        validated_evidence_count = (
+            db.query(DeliveryEvidence)
+            .filter(
+                DeliveryEvidence.delivery_id == delivery.id,
+                DeliveryEvidence.validated == True
+            )
+            .count()
+        )
+        
+        if validated_evidence_count == 0:
+            log.warning(
+                "settlement: blocked due to missing validated evidence",
+                extra={"commitment_id": commitment_id, "delivery_id": delivery.id}
+            )
+            raise ValueError(
+                "Settlement blocked: no validated evidence found. "
+                "At least 1 validated evidence is required."
+            )
+        
+        print(f">>> Validated evidence count: {validated_evidence_count}")
+    # =====================================================================
+
     delivered_at = delivery.submitted_at if delivery else None
+
 
     result = calculate_time_decay_payout(
         amount=Decimal(commitment.amount),

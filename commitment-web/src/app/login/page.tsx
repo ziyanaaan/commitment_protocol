@@ -3,7 +3,9 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { login } from "@/lib/auth";
+import { login, getCurrentUser } from "@/lib/auth";
+import { getDashboardPath } from "@/lib/roles";
+import type { Role } from "@/lib/roles";
 
 export default function LoginPage() {
     const router = useRouter();
@@ -19,7 +21,16 @@ export default function LoginPage() {
 
         try {
             await login({ email, password });
-            router.push("/profile");
+
+            // Fetch user profile to get role
+            const user = await getCurrentUser();
+            if (!user) {
+                throw new Error("Failed to get user profile");
+            }
+
+            // Redirect based on role
+            const dashboardPath = getDashboardPath(user.role as Role);
+            router.push(dashboardPath);
         } catch (err) {
             setError(err instanceof Error ? err.message : "Login failed");
         } finally {

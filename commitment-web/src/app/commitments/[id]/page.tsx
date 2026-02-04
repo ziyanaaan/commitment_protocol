@@ -50,6 +50,11 @@ export default function CommitmentPage() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
+  // Evidence states for delivery
+  const [githubUrl, setGithubUrl] = useState("");
+  const [screenshotUrl, setScreenshotUrl] = useState("");
+  const [showDeliveryModal, setShowDeliveryModal] = useState(false);
+
   // Ref for local component state
   const isMounted = useRef(true);
 
@@ -238,6 +243,66 @@ export default function CommitmentPage() {
   // Handle settle action (kept for backwards compatibility but shouldn't be called)
   async function handleSettle() {
     await performAction("settle", `/settlements/${id}/settle`, "POST");
+  }
+
+  // Handle delivery with evidence
+  async function handleDeliver() {
+    // Build evidences array from inputs
+    const evidences: { type: string; url: string }[] = [];
+
+    if (githubUrl.trim()) {
+      evidences.push({ type: "github", url: githubUrl.trim() });
+    }
+    if (screenshotUrl.trim()) {
+      evidences.push({ type: "screenshot", url: screenshotUrl.trim() });
+    }
+
+    if (evidences.length === 0) {
+      setError("Please provide at least one evidence (GitHub URL or Screenshot URL)");
+      return;
+    }
+
+    const actionKey = `${id}-deliver`;
+    if (inflightActions.has(actionKey)) {
+      console.warn("Deliver action already in progress");
+      return;
+    }
+    inflightActions.add(actionKey);
+    setActionLoading("deliver");
+    setError(null);
+    setShowDeliveryModal(false);
+
+    try {
+      // CRITICAL: Re-fetch commitment to get latest state
+      const freshCommitment = await api<Commitment>(`/commitments/${id}`);
+
+      // Verify action is still allowed
+      const allowed = actionsByStatus[freshCommitment.status] || [];
+      if (!allowed.includes("deliver")) {
+        console.log("Deliver no longer allowed, status is", freshCommitment.status);
+        if (isMounted.current) await load();
+        return;
+      }
+
+      // Perform delivery with evidence
+      await api(`/commitments/${id}/deliver`, {
+        method: "POST",
+        body: JSON.stringify({ evidences }),
+      });
+
+      // Navigate to result page (since backend auto-settles)
+      if (isMounted.current) {
+        router.push(`/result/${id}`);
+      }
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Delivery failed";
+      if (isMounted.current) {
+        setError(message);
+      }
+    } finally {
+      if (isMounted.current) setActionLoading(null);
+      inflightActions.delete(actionKey);
+    }
   }
 
   // Rendering
@@ -470,24 +535,140 @@ export default function CommitmentPage() {
                 </button>
               )}
 
-              {/* Deliver Button */}
+              {/* Deliver Section with Evidence Inputs */}
               {allowed.includes("deliver") && (
-                <button
-                  onClick={() => performAction("deliver", `/commitments/${id}/deliver`)}
-                  disabled={actionLoading !== null}
-                  className="flex-1 min-w-[200px] py-4 px-6 rounded-2xl font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg flex items-center justify-center gap-2"
-                >
-                  {actionLoading === "deliver" ? (
-                    <Loading size="sm" />
-                  ) : (
-                    <>
+                <div className="w-full space-y-4">
+                  {/* Evidence Input Fields */}
+                  <div className="bg-blue-50 border border-blue-200 rounded-2xl p-6">
+                    <h4 className="font-semibold text-blue-800 mb-4 flex items-center gap-2">
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                       </svg>
-                      Mark as Delivered
-                    </>
-                  )}
-                </button>
+                      Provide Evidence of Completion
+                    </h4>
+                    <p className="text-sm text-blue-700 mb-4">
+                      Add at least one form of evidence to prove your work is complete.
+                    </p>
+
+                    {/* GitHub URL Input */}
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium text-blue-800 mb-2">
+                        GitHub Repository URL (optional)
+                      </label>
+                      <input
+                        type="url"
+                        value={githubUrl}
+                        onChange={(e) => setGithubUrl(e.target.value)}
+                        placeholder="https://github.com/username/repository"
+                        className="w-full px-4 py-3 border border-blue-300 rounded-xl bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-[#5C4033] placeholder-[#8A796E]"
+                      />
+                    </div>
+
+                    {/* Screenshot URL Input */}
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium text-blue-800 mb-2">
+                        Screenshot URL (optional)
+                      </label>
+                      <input
+                        type="url"
+                        value={screenshotUrl}
+                        onChange={(e) => setScreenshotUrl(e.target.value)}
+                        placeholder="https://example.com/screenshot.png"
+                        className="w-full px-4 py-3 border border-blue-300 rounded-xl bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-[#5C4033] placeholder-[#8A796E]"
+                      />
+                      <p className="text-xs text-blue-600 mt-1">Supported: PNG, JPG, JPEG, WEBP (max 5MB)</p>
+                    </div>
+                  </div>
+
+                  {/* Deliver Button */}
+                  <button
+                    onClick={() => setShowDeliveryModal(true)}
+                    disabled={actionLoading !== null || (!githubUrl.trim() && !screenshotUrl.trim())}
+                    className="w-full py-4 px-6 rounded-2xl font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg flex items-center justify-center gap-2"
+                  >
+                    {actionLoading === "deliver" ? (
+                      <Loading size="sm" />
+                    ) : (
+                      <>
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Mark as Delivered
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
+
+              {/* Delivery Confirmation Modal */}
+              {showDeliveryModal && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                  <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
+                        <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </div>
+                      <div>
+                        <h3 className="font-serif font-bold text-xl text-[#5C4033]">Confirm Delivery</h3>
+                        <p className="text-sm text-[#8A796E]">This action cannot be undone</p>
+                      </div>
+                    </div>
+
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                      <div className="flex items-start gap-2">
+                        <svg className="w-5 h-5 text-amber-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                        <p className="text-sm text-amber-800">
+                          By marking this commitment as delivered, your evidence will be validated and settlement will be processed automatically.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Evidence Summary */}
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium text-[#5C4033]">Evidence to submit:</p>
+                      {githubUrl.trim() && (
+                        <div className="flex items-center gap-2 text-sm text-[#8A796E]">
+                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
+                          </svg>
+                          <span className="truncate">{githubUrl}</span>
+                        </div>
+                      )}
+                      {screenshotUrl.trim() && (
+                        <div className="flex items-center gap-2 text-sm text-[#8A796E]">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                          <span className="truncate">{screenshotUrl}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex gap-3 pt-2">
+                      <button
+                        onClick={() => setShowDeliveryModal(false)}
+                        className="flex-1 py-3 px-4 rounded-xl font-semibold text-[#5C4033] bg-[#F3F4F6] hover:bg-[#E5E7EB] transition-colors"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleDeliver}
+                        disabled={actionLoading === "deliver"}
+                        className="flex-1 py-3 px-4 rounded-xl font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+                      >
+                        {actionLoading === "deliver" ? (
+                          <Loading size="sm" />
+                        ) : (
+                          "Confirm Delivery"
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
               )}
 
               {/* Settle Button */}

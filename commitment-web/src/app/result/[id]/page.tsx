@@ -75,7 +75,7 @@ export default function ResultPage() {
           <p className="text-[#8A796E] mb-6">{error}</p>
           <div className="flex flex-col gap-3">
             <button
-              onClick={() => router.push(`/commitments/${id}`)}
+              onClick={() => router.push(`/dashboard/client/commitments/${id}`)}
               className="px-6 py-3 bg-[#997E67] text-white rounded-xl hover:bg-[#856b56] transition-colors"
             >
               View Commitment
@@ -235,7 +235,7 @@ export default function ResultPage() {
           <div className="px-8 pb-8">
             <div className="flex flex-col sm:flex-row gap-4">
               <button
-                onClick={() => router.push(`/commitments/${id}`)}
+                onClick={() => router.push(`/dashboard/client/commitments/${id}`)}
                 className="flex-1 py-4 px-6 rounded-2xl font-semibold text-[#5C4033] bg-[#FFDBBB] hover:bg-[#ffcfa6] transition-all flex items-center justify-center gap-2"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -246,7 +246,7 @@ export default function ResultPage() {
               </button>
 
               <button
-                onClick={() => router.push("/commitments/new")}
+                onClick={() => router.push("/dashboard/client/commitments/new")}
                 className="flex-1 py-4 px-6 rounded-2xl font-semibold text-white bg-gradient-to-r from-[#997E67] to-[#5C4634] hover:opacity-90 transition-all flex items-center justify-center gap-2"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

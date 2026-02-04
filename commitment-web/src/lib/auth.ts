@@ -46,21 +46,28 @@ export interface AuthError {
 }
 
 // ============================================================================
-// Token Management (in-memory only - never localStorage)
+// Token Management (using sessionStorage for persistence across navigations)
 // ============================================================================
 
-let accessToken: string | null = null;
+const TOKEN_KEY = "pledgos_access_token";
 
 export function getAccessToken(): string | null {
-    return accessToken;
+    if (typeof window === "undefined") return null;
+    return sessionStorage.getItem(TOKEN_KEY);
 }
 
 export function setAccessToken(token: string | null): void {
-    accessToken = token;
+    if (typeof window === "undefined") return;
+    if (token) {
+        sessionStorage.setItem(TOKEN_KEY, token);
+    } else {
+        sessionStorage.removeItem(TOKEN_KEY);
+    }
 }
 
 export function clearAccessToken(): void {
-    accessToken = null;
+    if (typeof window === "undefined") return;
+    sessionStorage.removeItem(TOKEN_KEY);
 }
 
 // ============================================================================

@@ -20,6 +20,8 @@ export async function api<T>(
 
       if (typeof err.detail === "string") {
         message = err.detail;
+      } else if (err.detail?.message) {
+        message = err.detail.message;
       } else if (Array.isArray(err.detail)) {
         message = err.detail.map((e: { msg: string }) => e.msg).join(", ");
       } else if (err.error) {
@@ -27,6 +29,7 @@ export async function api<T>(
       } else if (err.message) {
         message = err.message;
       }
+
     } catch {
       // If JSON parsing fails, use the raw text
       message = text || `API error (${res.status})`;

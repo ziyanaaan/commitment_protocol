@@ -11,8 +11,10 @@ from app.schemas.commitment import CommitmentCreate, CommitmentResponse
 from app.services.state import assert_transition
 from app.services.razorpay_client import client
 from app.models.payment import Payment
-from app.services.delivery import deliver_commitment
+from app.services.delivery import deliver_commitment, EvidenceValidationFailedError
 from app.schemas.delivery import DeliveryCreate
+from app.schemas.delivery_evidence import DeliveryWithEvidenceCreate
+
 
 
 class CommitmentCreateRequest(BaseModel):
@@ -25,6 +27,13 @@ class CommitmentCreateRequest(BaseModel):
     decay_curve: str = "linear"
 
 router = APIRouter(prefix="/commitments", tags=["commitments"])
+
+
+@router.get("")
+def list_commitments(db: Session = Depends(get_db)):
+    """List all commitments."""
+    commitments = db.query(Commitment).order_by(Commitment.id.desc()).all()
+    return commitments
 
 
 @router.post("")
@@ -116,23 +125,57 @@ def lock_commitment(
 @router.post("/{commitment_id}/deliver")
 def deliver(
     commitment_id: int,
-    payload: DeliveryCreate | None = None,
+    payload: DeliveryWithEvidenceCreate,
     db: Session = Depends(get_db),
 ):
-    """Deliver a commitment. Idempotent - safe to call multiple times."""
-    if payload is None:
-        payload = DeliveryCreate(
-            artifact_type="manual",
-            artifact_reference="submitted via UI"
+    """
+    Deliver a commitment with evidence.
+    
+    - Requires at least 1 evidence item (max 5)
+    - Each evidence is validated (GitHub repos, screenshots)
+    - If validation fails, returns 422 with details
+    - If successful, commitment is marked as delivered and settled
+    
+    Idempotent - safe to call multiple times (returns existing delivery).
+    """
+    # Validate evidences list
+    if not payload.evidences:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="At least 1 evidence item is required"
         )
 
+    # Create a DeliveryCreate payload for the service
+    delivery_payload = DeliveryCreate(
+        artifact_type="evidence",
+        artifact_reference=f"delivery with {len(payload.evidences)} evidence(s)"
+    )
+
     try:
-        result = deliver_commitment(db, commitment_id, payload)
+        result = deliver_commitment(
+            db, 
+            commitment_id, 
+            delivery_payload,
+            evidences=payload.evidences
+        )
+    except EvidenceValidationFailedError as e:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "message": "Evidence validation failed",
+                "errors": e.errors
+            }
+        )
     except ValueError as e:
         # Convert ValueError to HTTPException with proper status
         error_msg = str(e)
         if "not found" in error_msg.lower():
             raise HTTPException(404, error_msg)
+        elif "blocked" in error_msg.lower():
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=error_msg
+            )
         else:
             raise HTTPException(409, error_msg)
     
@@ -140,18 +183,27 @@ def deliver(
     if isinstance(result, dict):
         delivery = result["delivery"]
         settlement = result.get("settlement")
-        return {
+        settlement_error = result.get("settlement_error")
+        
+        response = {
             "id": delivery.id,
-            "status": "settled",
-            "delivered_at": delivery.submitted_at,
+            "status": "settled" if settlement else "delivered",
+            "delivered_at": delivery.submitted_at.isoformat() if delivery.submitted_at else None,
+            "evidence_count": result.get("evidence_count", 0),
+            "validated_count": result.get("validated_count", 0),
             "settlement_id": settlement.id if settlement else None,
         }
+        
+        if settlement_error:
+            response["settlement_error"] = settlement_error
+        
+        return response
     else:
         # Existing delivery was returned (idempotent case)
         return {
             "id": result.id,
             "status": "delivered",
-            "delivered_at": result.submitted_at,
+            "delivered_at": result.submitted_at.isoformat() if result.submitted_at else None,
             "message": "Already delivered"
         }
 

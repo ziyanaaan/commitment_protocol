@@ -238,7 +238,7 @@ export default function ProfilePage() {
                         {/* Actions */}
                         <div className="pt-6 border-t border-[#CCBEB1]/40 flex flex-wrap gap-4">
                             <Link
-                                href="/commitments/new"
+                                href={user.role === "client" ? "/dashboard/client/commitments/new" : "/dashboard/freelancer/commitments"}
                                 className="flex-1 text-center py-3 px-4 bg-[#997E67] text-white font-medium rounded-xl hover:bg-[#856b56] shadow-lg transition-all"
                             >
                                 {user.role === "client" ? "Create Commitment" : "View Commitments"}
