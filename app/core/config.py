@@ -29,6 +29,21 @@ class Settings:
     # Rate Limiting
     AUTH_RATE_LIMIT: str = "5/minute"  # 5 attempts per minute per IP
     
+    # Razorpay Configuration
+    RAZORPAY_KEY_ID: str = os.getenv("RAZORPAY_KEY_ID", "")
+    RAZORPAY_KEY_SECRET: str = os.getenv("RAZORPAY_KEY_SECRET", "")
+    RAZORPAY_WEBHOOK_SECRET: str = os.getenv("RAZORPAY_WEBHOOK_SECRET", "")
+    RAZORPAYX_BASE_URL: str = os.getenv("RAZORPAYX_BASE_URL", "https://api.razorpay.com/v1")
+    
+    # Financial Transfer Configuration
+    # CRITICAL: Set to False in production until ready for live transfers
+    TRANSFERS_ENABLED: bool = os.getenv("TRANSFERS_ENABLED", "false").lower() == "true"
+    
+    # Retry Configuration
+    MAX_PAYOUT_RETRIES: int = int(os.getenv("MAX_PAYOUT_RETRIES", "5"))
+    RETRY_BASE_DELAY_SECONDS: int = int(os.getenv("RETRY_BASE_DELAY_SECONDS", "60"))
+    MANUAL_REVIEW_AFTER_RETRIES: int = int(os.getenv("MANUAL_REVIEW_AFTER_RETRIES", "3"))
+    
     def validate(self) -> None:
         """Validate that required settings are present."""
         if not self.DATABASE_URL:

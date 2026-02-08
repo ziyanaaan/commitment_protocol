@@ -8,6 +8,9 @@ from app.core.errors import value_error_handler
 from app.api.payment import router as payment_router
 from app.api.settlement import router as settlement_router
 from app.api.auth import router as auth_router
+from app.api.admin import router as admin_router
+from app.api.webhooks import router as webhook_router
+from app.api.beneficiary import router as beneficiary_router
 from fastapi.middleware.cors import CORSMiddleware
 
 # Rate limiting
@@ -49,6 +52,15 @@ app.include_router(delivery_router)
 app.include_router(preview_router)
 app.include_router(payment_router)
 app.include_router(settlement_router)
+
+# Admin dashboard routes (NEW)
+app.include_router(admin_router)
+
+# Webhook routes (FINANCIAL INFRASTRUCTURE)
+app.include_router(webhook_router)
+
+# Beneficiary routes (PAYOUT ACCOUNTS)
+app.include_router(beneficiary_router)
 
 
 

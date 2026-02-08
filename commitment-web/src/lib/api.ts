@@ -4,9 +4,22 @@ export async function api<T>(
   path: string,
   options: RequestInit = {}
 ): Promise<T> {
+  // Get auth token from sessionStorage (same key as auth.ts)
+  const token = typeof window !== "undefined" ? sessionStorage.getItem("pledgos_access_token") : null;
+
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(options.headers as Record<string, string> || {}),
+  };
+
+  // Add Authorization header if token exists
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
   const res = await fetch(`${API_BASE}${path}`, {
-    headers: { "Content-Type": "application/json" },
     ...options,
+    headers,
   });
 
   const text = await res.text();

@@ -243,6 +243,14 @@ export default function ProfilePage() {
                             >
                                 {user.role === "client" ? "Create Commitment" : "View Commitments"}
                             </Link>
+                            {user.role === "freelancer" && (
+                                <Link
+                                    href="/profile/payout-accounts"
+                                    className="flex-1 text-center py-3 px-4 border border-[#997E67] text-[#997E67] font-medium rounded-xl hover:bg-[#997E67]/10 transition-all"
+                                >
+                                    Payout Accounts
+                                </Link>
+                            )}
                             <button
                                 className="px-6 py-3 border border-[#CCBEB1] text-[#5C4033] rounded-xl hover:bg-[#F9F7F5] transition-all"
                                 onClick={() => alert("Settings coming soon!")}

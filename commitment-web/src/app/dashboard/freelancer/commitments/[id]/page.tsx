@@ -29,12 +29,21 @@ type Preview = {
     delay_minutes: number;
 };
 
+type FinancialStatus = {
+    payment_status: string;
+    payout_status: string | null;
+    payout_amount: number | null;
+    refund_status: string | null;
+    refund_amount: number | null;
+};
+
 export default function FreelancerCommitmentDetailPage() {
     const { id } = useParams<{ id: string }>();
     const router = useRouter();
     const [commitment, setCommitment] = useState<Commitment | null>(null);
     const [settlement, setSettlement] = useState<Settlement | null>(null);
     const [preview, setPreview] = useState<Preview | null>(null);
+    const [financialStatus, setFinancialStatus] = useState<FinancialStatus | null>(null);
     const [loading, setLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
@@ -57,6 +66,14 @@ export default function FreelancerCommitmentDetailPage() {
                     setSettlement(s);
                 } catch {
                     // Settlement might not exist yet
+                }
+
+                // Load financial status for payout tracking
+                try {
+                    const fs = await api<FinancialStatus>(`/settlements/${id}/financial-status`);
+                    setFinancialStatus(fs);
+                } catch {
+                    // Financial status might not exist
                 }
             } else {
                 // Load live preview for non-settled commitments
@@ -315,6 +332,7 @@ export default function FreelancerCommitmentDetailPage() {
                                 className="w-full px-4 py-3 border border-[#CCBEB1] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#997E67] text-[#5C4033]"
                             />
                             <p className="text-xs text-[#8A796E] mt-1">Supported: PNG, JPG, JPEG, WEBP (max 5MB)</p>
+                            <p className="text-xs text-[#8A796E] mt-1">*To get https link for you screenshot. upload it in <a href="https://imgur.com" target="_blank" rel="noopener noreferrer">imgur.com</a>, then copy image address from it</p>
                         </div>
                     </div>
 
@@ -365,6 +383,59 @@ export default function FreelancerCommitmentDetailPage() {
                             <p className="text-2xl font-semibold text-green-800">₹{settlement.payout_amount.toLocaleString()}</p>
                         </div>
                     )}
+
+                    {/* Financial Status */}
+                    {financialStatus && (
+                        <div className="border border-[#CCBEB1]/30 rounded-lg p-4 mb-4">
+                            <h3 className="text-sm font-medium text-[#5C4033] mb-3">Transfer Status</h3>
+                            <div className="space-y-3">
+                                {financialStatus.payout_status && (
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-sm text-[#8A796E]">Payout</span>
+                                        <span className={`px-2 py-1 rounded text-xs font-medium ${financialStatus.payout_status === "completed"
+                                                ? "bg-green-100 text-green-700"
+                                                : financialStatus.payout_status === "failed" || financialStatus.payout_status === "manual_review"
+                                                    ? "bg-red-100 text-red-700"
+                                                    : "bg-amber-100 text-amber-700"
+                                            }`}>
+                                            {financialStatus.payout_status === "queued" && "Queued"}
+                                            {financialStatus.payout_status === "processing" && "Processing..."}
+                                            {financialStatus.payout_status === "completed" && "Completed ✓"}
+                                            {financialStatus.payout_status === "failed" && "Failed"}
+                                            {financialStatus.payout_status === "retrying" && "Retrying..."}
+                                            {financialStatus.payout_status === "manual_review" && "Under Review"}
+                                        </span>
+                                    </div>
+                                )}
+
+                                {financialStatus.refund_status && (
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-sm text-[#8A796E]">Client Refund</span>
+                                        <span className={`px-2 py-1 rounded text-xs font-medium ${financialStatus.refund_status === "processed"
+                                                ? "bg-green-100 text-green-700"
+                                                : financialStatus.refund_status === "failed"
+                                                    ? "bg-red-100 text-red-700"
+                                                    : "bg-amber-100 text-amber-700"
+                                            }`}>
+                                            {financialStatus.refund_status === "created" && "Pending"}
+                                            {financialStatus.refund_status === "pending_gateway" && "Processing..."}
+                                            {financialStatus.refund_status === "processed" && "Refunded ✓"}
+                                            {financialStatus.refund_status === "failed" && "Failed"}
+                                        </span>
+                                    </div>
+                                )}
+                            </div>
+
+                            {(financialStatus.payout_status === "queued" ||
+                                financialStatus.payout_status === "processing" ||
+                                financialStatus.payout_status === "retrying") && (
+                                    <p className="text-xs text-[#8A796E] mt-3 italic">
+                                        Payouts typically arrive within 1-3 business days.
+                                    </p>
+                                )}
+                        </div>
+                    )}
+
                     <button
                         onClick={() => router.push(`/result/${id}`)}
                         className="w-full py-3 px-4 bg-[#FFDBBB] text-[#5C4033] font-medium rounded-lg hover:bg-[#ffcfa6] transition-colors flex items-center justify-center gap-2"

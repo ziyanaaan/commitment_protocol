@@ -3,12 +3,13 @@
  * Used to determine permissions and routing based on user role.
  */
 
-export type Role = "client" | "freelancer";
+export type Role = "client" | "freelancer" | "admin";
 
 /**
  * Get the dashboard path for a given role.
  */
 export function getDashboardPath(role: Role): string {
+    if (role === "admin") return "/admin";
     return role === "client" ? "/dashboard/client" : "/dashboard/freelancer";
 }
 

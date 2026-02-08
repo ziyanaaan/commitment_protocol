@@ -29,12 +29,21 @@ type Preview = {
     delay_minutes: number;
 };
 
+type FinancialStatus = {
+    payment_status: string;
+    payout_status: string | null;
+    payout_amount: number | null;
+    refund_status: string | null;
+    refund_amount: number | null;
+};
+
 export default function ClientCommitmentDetailPage() {
     const { id } = useParams<{ id: string }>();
     const router = useRouter();
     const [commitment, setCommitment] = useState<Commitment | null>(null);
     const [settlement, setSettlement] = useState<Settlement | null>(null);
     const [preview, setPreview] = useState<Preview | null>(null);
+    const [financialStatus, setFinancialStatus] = useState<FinancialStatus | null>(null);
     const [loading, setLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -52,6 +61,14 @@ export default function ClientCommitmentDetailPage() {
                     setSettlement(s);
                 } catch {
                     // Settlement might not exist yet
+                }
+
+                // Load financial status for refund tracking
+                try {
+                    const fs = await api<FinancialStatus>(`/settlements/${id}/financial-status`);
+                    setFinancialStatus(fs);
+                } catch {
+                    // Financial status might not exist
                 }
             } else {
                 // Load live preview for non-settled commitments
@@ -294,6 +311,34 @@ export default function ClientCommitmentDetailPage() {
                             </div>
                         </div>
                     )}
+
+                    {/* Refund Status */}
+                    {financialStatus && financialStatus.refund_status && settlement && settlement.refund_amount > 0 && (
+                        <div className="border border-[#CCBEB1]/30 rounded-lg p-4 mb-4">
+                            <div className="flex items-center justify-between">
+                                <span className="text-sm text-[#8A796E]">Refund Status</span>
+                                <span className={`px-2 py-1 rounded text-xs font-medium ${financialStatus.refund_status === "processed"
+                                        ? "bg-green-100 text-green-700"
+                                        : financialStatus.refund_status === "failed"
+                                            ? "bg-red-100 text-red-700"
+                                            : "bg-amber-100 text-amber-700"
+                                    }`}>
+                                    {financialStatus.refund_status === "created" && "Pending"}
+                                    {financialStatus.refund_status === "pending_gateway" && "Processing..."}
+                                    {financialStatus.refund_status === "processed" && "Refunded ✓"}
+                                    {financialStatus.refund_status === "failed" && "Failed - Contact Support"}
+                                </span>
+                            </div>
+
+                            {(financialStatus.refund_status === "created" ||
+                                financialStatus.refund_status === "pending_gateway") && (
+                                    <p className="text-xs text-[#8A796E] mt-2 italic">
+                                        Refunds typically appear within 5-7 business days.
+                                    </p>
+                                )}
+                        </div>
+                    )}
+
                     <button
                         onClick={() => router.push(`/result/${id}`)}
                         className="w-full py-3 px-4 bg-[#FFDBBB] text-[#5C4033] font-medium rounded-lg hover:bg-[#ffcfa6] transition-colors flex items-center justify-center gap-2"
