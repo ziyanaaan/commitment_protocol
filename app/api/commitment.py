@@ -20,7 +20,7 @@ from app.schemas.delivery_evidence import DeliveryWithEvidenceCreate
 
 
 class CommitmentCreateRequest(BaseModel):
-    freelancer_id: int
+    freelancer_id: str  # Changed from int to str (public_id)
     amount: float
     deadline: datetime
     title: str
@@ -46,18 +46,18 @@ def list_commitments(
         # Admins see all
         commitments = db.query(Commitment).order_by(Commitment.id.desc()).all()
     elif current_user.role == "client":
-        # Clients see only their own commitments
+        # Clients see only their own commitments (using public_id)
         commitments = (
             db.query(Commitment)
-            .filter(Commitment.client_id == current_user.id)
+            .filter(Commitment.client_id == current_user.public_id)
             .order_by(Commitment.id.desc())
             .all()
         )
     elif current_user.role == "freelancer":
-        # Freelancers see only commitments assigned to them
+        # Freelancers see only commitments assigned to them (using public_id)
         commitments = (
             db.query(Commitment)
-            .filter(Commitment.freelancer_id == current_user.id)
+            .filter(Commitment.freelancer_id == current_user.public_id)
             .order_by(Commitment.id.desc())
             .all()
         )
@@ -83,9 +83,9 @@ def create_commitment(
             detail="Only clients can create commitments"
         )
     
-    # Verify freelancer exists
+    # Verify freelancer exists by public_id
     freelancer = db.query(User).filter(
-        User.id == payload.freelancer_id,
+        User.public_id == payload.freelancer_id,
         User.role == "freelancer"
     ).first()
     
@@ -96,8 +96,8 @@ def create_commitment(
         )
     
     c = Commitment(
-        client_id=current_user.id,  # Set from authenticated user
-        freelancer_id=payload.freelancer_id,
+        client_id=current_user.public_id,  # Set from authenticated user's public_id
+        freelancer_id=payload.freelancer_id,  # Already a public_id string
         amount=payload.amount,
         deadline=payload.deadline,
         title=payload.title,
@@ -125,8 +125,8 @@ def fund_commitment(
     if not c:
         raise HTTPException(404, "Commitment not found")
     
-    # Authorization: only the client can fund
-    if current_user.role != "admin" and c.client_id != current_user.id:
+    # Authorization: only the client can fund (compare public_id)
+    if current_user.role != "admin" and c.client_id != current_user.public_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You can only fund your own commitments"
@@ -181,8 +181,8 @@ def lock_commitment(
     if not commitment:
         raise HTTPException(404, "Commitment not found")
     
-    # Authorization: only the freelancer can lock
-    if current_user.role != "admin" and commitment.freelancer_id != current_user.id:
+    # Authorization: only the freelancer can lock (compare public_id)
+    if current_user.role != "admin" and commitment.freelancer_id != current_user.public_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You can only lock commitments assigned to you"
@@ -226,8 +226,8 @@ def deliver(
     if not commitment:
         raise HTTPException(404, "Commitment not found")
     
-    # Authorization: only the freelancer can deliver
-    if current_user.role != "admin" and commitment.freelancer_id != current_user.id:
+    # Authorization: only the freelancer can deliver (compare public_id)
+    if current_user.role != "admin" and commitment.freelancer_id != current_user.public_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You can only deliver commitments assigned to you"
@@ -317,9 +317,9 @@ def get_commitment(
     if not c:
         raise HTTPException(404, "Commitment not found")
     
-    # Authorization: user must be the client, freelancer, or admin
+    # Authorization: user must be the client, freelancer, or admin (compare public_id)
     if current_user.role != "admin":
-        if c.client_id != current_user.id and c.freelancer_id != current_user.id:
+        if c.client_id != current_user.public_id and c.freelancer_id != current_user.public_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You don't have access to this commitment"

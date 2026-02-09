@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, ForeignKey, DateTime, Numeric, String
+from sqlalchemy import Column, Integer, DateTime, Numeric, String
 from sqlalchemy.sql import func
 from app.core.database import Base
 
@@ -11,9 +11,9 @@ class Commitment(Base):
     title = Column(String(255), nullable=False)
     description = Column(String, nullable=True)
 
-
-    client_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    freelancer_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    # Changed from Integer ForeignKey to String(40) for public_id
+    client_id = Column(String(40), nullable=False, index=True)
+    freelancer_id = Column(String(40), nullable=False, index=True)
 
     amount = Column(Numeric(10, 2), nullable=False)
 

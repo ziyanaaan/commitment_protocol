@@ -26,8 +26,9 @@ def get_by_commitment(
     if not c:
         raise HTTPException(404, "Commitment not found")
     
+    # Authorization: compare public_id
     if current_user.role != "admin":
-        if c.client_id != current_user.id and c.freelancer_id != current_user.id:
+        if c.client_id != current_user.public_id and c.freelancer_id != current_user.public_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You don't have access to this commitment"
@@ -65,8 +66,9 @@ def settle(
     if not c:
         raise HTTPException(404, "Commitment not found")
     
+    # Authorization: compare public_id
     if current_user.role != "admin":
-        if c.freelancer_id != current_user.id:
+        if c.freelancer_id != current_user.public_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Only the freelancer or admin can trigger settlement"
@@ -105,8 +107,9 @@ def get_financial_status(
     if not c:
         raise HTTPException(404, "Commitment not found")
     
+    # Authorization: compare public_id
     if current_user.role != "admin":
-        if c.client_id != current_user.id and c.freelancer_id != current_user.id:
+        if c.client_id != current_user.public_id and c.freelancer_id != current_user.public_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You don't have access to this commitment"

@@ -63,7 +63,7 @@ export default function NewCommitmentPage() {
             const result = await api<{ id: number }>("/commitments", {
                 method: "POST",
                 body: JSON.stringify({
-                    freelancer_id: parseInt(freelancerId),
+                    freelancer_id: freelancerId,
                     title,
                     description,
                     amount: parseInt(amount),
@@ -126,19 +126,19 @@ export default function NewCommitmentPage() {
                         {/* Freelancer ID */}
                         <div>
                             <label htmlFor="freelancerId" className="block text-sm font-medium text-[#5C4033] mb-2">
-                                Freelancer ID <span className="text-red-500">*</span>
+                                Freelancer Public ID <span className="text-red-500">*</span>
                             </label>
                             <input
                                 id="freelancerId"
-                                type="number"
+                                type="text"
                                 value={freelancerId}
                                 onChange={(e) => setFreelancerId(e.target.value)}
                                 required
-                                placeholder="Enter the freelancer's user ID"
-                                className="w-full px-4 py-3 border border-[#CCBEB1] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#997E67] text-[#5C4033]"
+                                placeholder="e.g., fre_abc123..."
+                                className="w-full px-4 py-3 border border-[#CCBEB1] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#997E67] text-[#5C4033] font-mono"
                             />
                             <p className="text-xs text-[#8A796E] mt-1">
-                                Ask the freelancer for their user ID from their profile page.
+                                Ask the freelancer for their Public ID from their profile page.
                             </p>
                         </div>
 

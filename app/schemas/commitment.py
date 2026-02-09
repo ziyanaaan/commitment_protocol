@@ -7,8 +7,8 @@ from typing import Optional
 
 
 class CommitmentCreate(BaseModel):
-    client_id: int
-    freelancer_id: int
+    client_id: str  # Changed from int to str (public_id)
+    freelancer_id: str  # Changed from int to str (public_id)
     amount: Decimal
     deadline: datetime
     title: str
@@ -24,8 +24,8 @@ class CommitmentCreate(BaseModel):
 
 class CommitmentResponse(BaseModel):
     id: int
-    client_id: int
-    freelancer_id: int
+    client_id: str  # Changed from int to str (public_id)
+    freelancer_id: str  # Changed from int to str (public_id)
     amount: Decimal
     deadline: datetime
     title: str
@@ -36,4 +36,3 @@ class CommitmentResponse(BaseModel):
 
     class Config:
         orm_mode = True
-

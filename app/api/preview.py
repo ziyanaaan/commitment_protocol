@@ -28,9 +28,9 @@ def preview_commitment(
     if not c:
         raise HTTPException(404, "Commitment not found")
     
-    # Authorization: user must be the client, freelancer, or admin
+    # Authorization: user must be the client, freelancer, or admin (compare public_id)
     if current_user.role != "admin":
-        if c.client_id != current_user.id and c.freelancer_id != current_user.id:
+        if c.client_id != current_user.public_id and c.freelancer_id != current_user.public_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You don't have access to this commitment"
