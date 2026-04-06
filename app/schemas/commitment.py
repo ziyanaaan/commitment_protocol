@@ -7,8 +7,8 @@ from typing import Optional
 
 
 class CommitmentCreate(BaseModel):
-    client_id: int
-    freelancer_id: int
+    client_id: str  # Changed from int to str (public_id)
+    freelancer_id: str  # Changed from int to str (public_id)
     amount: Decimal
     deadline: datetime
     title: str
@@ -24,14 +24,15 @@ class CommitmentCreate(BaseModel):
 
 class CommitmentResponse(BaseModel):
     id: int
-    client_id: int
-    freelancer_id: int
+    client_id: str  # Changed from int to str (public_id)
+    freelancer_id: str  # Changed from int to str (public_id)
     amount: Decimal
     deadline: datetime
     title: str
     description: Optional[str] = None
     decay_curve: str = "balanced"
     status: str
+    created_at: Optional[datetime] = None
 
     class Config:
         orm_mode = True
